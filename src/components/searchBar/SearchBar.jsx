@@ -1,10 +1,14 @@
-import { useState, useMemo } from "react";
-import { Search, List } from "lucide-react";
-import { motion } from "framer-motion";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { Search, List, ChevronDown } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import "./searchBar.scss";
 
 const SearchBar = ({ setQuery, setCategoria, setActivateSearch }) => {
   const [localQuery, setLocalQuery] = useState("");
+  const [isOpen, setIsOpen] = useState(false);
+  const [selectedValue, setSelectedValue] = useState("");
+
+  const dropdownRef = useRef(null);
 
   const categorias = useMemo(
     () => ["Natureza", "Pessoas", "Tecnologia", "Animais", "Esportes"],
@@ -15,8 +19,33 @@ const SearchBar = ({ setQuery, setCategoria, setActivateSearch }) => {
     if (e?.preventDefault) e.preventDefault();
     setQuery(localQuery.trim());
     setCategoria("");
+    setSelectedValue("");
     setActivateSearch(true);
+    setIsOpen(false);
   };
+
+  const handleSelect = (value) => {
+    setSelectedValue(value);
+    setCategoria(value);
+    setActivateSearch(true);
+    setIsOpen(false);
+  };
+
+  const getSelectedLabel = () => {
+    if (selectedValue === "") return "Todas as categorias";
+    if (selectedValue === "liked") return "Curtidas";
+    if (selectedValue === "downloaded") return "Baixadas";
+    return selectedValue;
+  };
+
+  useEffect(() => {
+    const onClickOutside = (e) => {
+      if (!dropdownRef.current) return;
+      if (!dropdownRef.current.contains(e.target)) setIsOpen(false);
+    };
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, []);
 
   return (
     <motion.form
@@ -46,26 +75,74 @@ const SearchBar = ({ setQuery, setCategoria, setActivateSearch }) => {
         Pesquisar
       </button>
 
-      <div className="select-wrapper">
+      {/* SELECT CUSTOM (substitui o <select> nativo) */}
+      <div className="select-wrapper" ref={dropdownRef}>
         <List className="icon" size={18} aria-hidden="true" focusable="false" />
-        <select
-          defaultValue=""
-          name="categoria"
-          onChange={(e) => {
-            setCategoria(e.target.value);
-            setActivateSearch(true);
-          }}
+
+        <button
+          type="button"
+          className="select-trigger"
           aria-label="Selecionar categoria"
+          aria-haspopup="listbox"
+          aria-expanded={isOpen}
+          onClick={() => setIsOpen((v) => !v)}
         >
-          <option value="">Todas as categorias</option>
-          {categorias.map((cat) => (
-            <option key={cat} value={cat}>
-              {cat}
-            </option>
-          ))}
-          <option value="liked">Curtidas</option>
-          <option value="downloaded">Baixadas</option>
-        </select>
+          <span className="select-trigger__label">{getSelectedLabel()}</span>
+          <ChevronDown className="select-trigger__chev" size={18} aria-hidden="true" />
+        </button>
+
+        <AnimatePresence>
+          {isOpen && (
+            <motion.ul
+              className="select-options"
+              role="listbox"
+              aria-label="Lista de categorias"
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.18 }}
+            >
+              <li
+                role="option"
+                aria-selected={selectedValue === ""}
+                className={selectedValue === "" ? "is-selected" : ""}
+                onClick={() => handleSelect("")}
+              >
+                Todas as categorias
+              </li>
+
+              {categorias.map((cat) => (
+                <li
+                  key={cat}
+                  role="option"
+                  aria-selected={selectedValue === cat}
+                  className={selectedValue === cat ? "is-selected" : ""}
+                  onClick={() => handleSelect(cat)}
+                >
+                  {cat}
+                </li>
+              ))}
+
+              <li
+                role="option"
+                aria-selected={selectedValue === "liked"}
+                className={selectedValue === "liked" ? "is-selected" : ""}
+                onClick={() => handleSelect("liked")}
+              >
+                Curtidas
+              </li>
+
+              <li
+                role="option"
+                aria-selected={selectedValue === "downloaded"}
+                className={selectedValue === "downloaded" ? "is-selected" : ""}
+                onClick={() => handleSelect("downloaded")}
+              >
+                Baixadas
+              </li>
+            </motion.ul>
+          )}
+        </AnimatePresence>
       </div>
     </motion.form>
   );

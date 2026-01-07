@@ -1,3 +1,5 @@
+@use '../../styles/variables' as vars;
+
 .search-bar {
   display: flex;
   justify-content: center;
@@ -19,7 +21,7 @@
       left: 12px;
       color: #ccc;
       pointer-events: none;
-      z-index: 1;
+      z-index: 2;
     }
 
     .clear-icon {
@@ -30,8 +32,7 @@
       z-index: 1;
     }
 
-    input,
-    select {
+    input {
       padding: 12px 16px 12px 36px;
       font-size: 1rem;
       background-color: #1e1e1e;
@@ -40,36 +41,98 @@
       height: 100%;
       min-width: 0;
       box-sizing: border-box;
-      border: 1px solid #00bfff;
-      border-radius: 4px;
+      border: 1px solid vars.$corGlobal;
+      border-radius: 8px; /* ✅ padronizado com botão */
       outline: none;
       transition: border-color 0.2s ease, box-shadow 0.2s ease;
 
       &:hover {
-        border-color: #40d4ff;
-        box-shadow: 0 0 6px rgba(0, 191, 255, 0.3);
+        border-color: vars.$corGlobal;
+        box-shadow: 0 0 6px rgba(239, 68, 68, 0.25);
       }
 
       &:focus {
-        border-color: #00d4ff;
-        box-shadow: 0 0 8px rgba(0, 191, 255, 0.4);
+        border-color: vars.$corGlobal;
+        box-shadow: 0 0 8px rgba(239, 68, 68, 0.35);
       }
 
       &:active {
-        border-color: #0099cc;
+        border-color: vars.$corGlobal;
       }
     }
 
-    select {
-      appearance: none;
-      background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%23ccc' viewBox='0 0 24 24'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 12px center;
-      background-size: 16px;
-      padding-right: 50px;
-      text-overflow: ellipsis;
+    /* ===========================
+       SELECT CUSTOM (MODERNO)
+       =========================== */
+
+    .select-trigger {
+      padding: 12px 16px 12px 36px;
+      font-size: 1rem;
+      background-color: #1e1e1e;
+      color: #fff;
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      box-sizing: border-box;
+      border: 1px solid vars.$corGlobal;
+      border-radius: 8px; /* ✅ padronizado */
+      outline: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+
+      &:hover {
+        border-color: vars.$corGlobal;
+        box-shadow: 0 0 6px rgba(239, 68, 68, 0.25);
+      }
+    }
+
+    .select-trigger__label {
       overflow: hidden;
+      text-overflow: ellipsis;
       white-space: nowrap;
+    }
+
+    .select-trigger__chev {
+      flex-shrink: 0;
+      opacity: 0.9;
+    }
+
+    .select-options {
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 0;
+      width: 100%;
+      background-color: #141414;
+      border: 1px solid rgba(239, 68, 68, 0.7);
+      border-radius: 12px;
+      padding: 6px;
+      z-index: 20;
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55);
+      overflow: hidden;
+    }
+
+    .select-options li {
+      list-style: none;
+      padding: 10px 12px;
+      border-radius: 10px;
+      color: #fff;
+      font-family: 'Inter', system-ui, sans-serif;
+      cursor: pointer;
+      transition: background 0.18s ease, transform 0.18s ease;
+
+      &:hover {
+        background: rgba(239, 68, 68, 0.22);
+        transform: translateY(-1px);
+      }
+
+      &.is-selected {
+        background: rgba(239, 68, 68, 0.35);
+        outline: 1px solid rgba(239, 68, 68, 0.75);
+      }
     }
   }
 
@@ -90,7 +153,7 @@
     padding: 12px 20px;
     font-size: 1rem;
     font-weight: 600;
-    background-color: #00bfff;
+    background-color: vars.$corGlobal;
     color: white;
     border: none;
     border-radius: 8px;
@@ -106,7 +169,7 @@
     }
 
     &:hover {
-      background-color: #009acd;
+      filter: brightness(0.95);
     }
   }
 
@@ -131,7 +194,7 @@
       height: 44px;
 
       input,
-      select {
+      .select-trigger {
         padding: 10px 14px 10px 32px;
         font-size: 1rem;
         height: 100%;
@@ -145,10 +208,6 @@
 
     .select-wrapper {
       min-width: 200px;
-
-      select {
-        padding-right: 50px;
-      }
     }
 
     button {
@@ -183,7 +242,7 @@
       height: 48px;
 
       input,
-      select {
+      .select-trigger {
         padding: 12px 16px 12px 36px;
         font-size: 1rem;
         height: 100%;
@@ -192,10 +251,6 @@
 
     .select-wrapper {
       min-width: 200px;
-
-      select {
-        padding-right: 50px;
-      }
     }
 
     button {
@@ -223,10 +278,6 @@
       flex: 2.2;
       min-width: 200px;
       height: 48px;
-
-      select {
-        padding-right: 50px;
-      }
     }
 
     button {
@@ -256,10 +307,6 @@
       flex: 1.8;
       min-width: 200px;
       height: 48px;
-
-      select {
-        padding-right: 50px;
-      }
     }
 
     button {
@@ -357,7 +404,7 @@
     .select-wrapper {
 
       input,
-      select {
+      .select-trigger {
         padding: 8px 12px 8px 32px;
         font-size: 0.9rem;
       }
@@ -376,7 +423,7 @@
     .select-wrapper {
 
       input,
-      select {
+      .select-trigger {
         transition: none;
       }
     }
