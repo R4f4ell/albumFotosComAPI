@@ -65,14 +65,13 @@
     border-radius: 12px;
     overflow: hidden;
 
-    /* fallback caso width/height não venham */
     aspect-ratio: 1 / 1;
   }
 
   img {
     width: 100%;
     height: 100%;
-    object-fit: contain; /* imagem inteira, sem cortar */
+    object-fit: contain; 
     display: block;
     cursor: pointer;
   }

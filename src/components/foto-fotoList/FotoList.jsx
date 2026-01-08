@@ -81,7 +81,6 @@ const FotoList = ({ fotos, setFotoAmpliada, showPlaceholders = false }) => {
       return { columns: out, fillersByCol: Array.from({ length: cols }, () => []) };
     }
 
-    // ✅ masonry real: sempre na coluna mais baixa
     for (const foto of list) {
       const w = foto.width || 1;
       const h = foto.height || 1;
@@ -97,7 +96,6 @@ const FotoList = ({ fotos, setFotoAmpliada, showPlaceholders = false }) => {
       heights[target] += estimatedHeight + gapPx;
     }
 
-    // ✅ placeholders avançados: nivelam a base e evitam buracos enquanto carrega
     const fillers = Array.from({ length: cols }, () => []);
 
     if (showPlaceholders) {
@@ -108,12 +106,11 @@ const FotoList = ({ fotos, setFotoAmpliada, showPlaceholders = false }) => {
 
         if (missing <= 0) continue;
 
-        // gera alturas estáveis (sem “piscada”)
         const seed = (list.length + 1) * 1000 + c * 97;
         const rnd = mulberry32(seed);
 
         while (missing > 120) {
-          const h = Math.round(160 + rnd() * 180); // 160..340
+          const h = Math.round(160 + rnd() * 180);
           fillers[c].push(Math.min(h, Math.max(120, missing)));
           missing -= h + gapPx;
         }

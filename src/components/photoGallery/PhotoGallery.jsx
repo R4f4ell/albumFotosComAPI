@@ -22,10 +22,7 @@ const PhotoGallery = () => {
   const [fotoAmpliada, setFotoAmpliada] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [interactedReady, setInteractedReady] = useState(false);
-
-  // ✅ usado pra mostrar skeletons ANTES de bater no final (evita “buraco”)
   const [nearBottom, setNearBottom] = useState(false);
-
   const debouncedQuery = useDebounce(query, 400);
 
   const isInteractedCategory = useMemo(
@@ -102,7 +99,6 @@ const PhotoGallery = () => {
     if (page > 1) fetchImages();
   }, [page]);
 
-  // reset ao trocar de categoria
   useEffect(() => {
     setFotos([]);
 
@@ -120,7 +116,6 @@ const PhotoGallery = () => {
       const distanceToBottom =
         doc.scrollHeight - (window.innerHeight + window.pageYOffset);
 
-      // ✅ zona “pré-final”: mostra skeleton e também antecipa o fetch
       const prefetchZone = distanceToBottom <= 800;
 
       setNearBottom(prefetchZone);
