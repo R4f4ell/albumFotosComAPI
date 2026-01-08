@@ -23,6 +23,9 @@ const PhotoGallery = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [interactedReady, setInteractedReady] = useState(false);
 
+  // ✅ usado pra mostrar skeletons ANTES de bater no final (evita “buraco”)
+  const [nearBottom, setNearBottom] = useState(false);
+
   const debouncedQuery = useDebounce(query, 400);
 
   const isInteractedCategory = useMemo(
@@ -104,7 +107,7 @@ const PhotoGallery = () => {
     setFotos([]);
 
     if (categoria === "liked" || categoria === "downloaded") {
-      setInteractedReady(false);   // só reseta quando precisa mostrar "Carregando..."
+      setInteractedReady(false);
     } else {
       setInteractedReady(true);
     }
@@ -112,11 +115,17 @@ const PhotoGallery = () => {
 
   useEffect(() => {
     const handleScroll = () => {
-      const nearBottom =
-        window.innerHeight + window.pageYOffset >=
-        document.documentElement.offsetHeight - 10;
+      const doc = document.documentElement;
 
-      if (nearBottom && hasMore && !isLoading) {
+      const distanceToBottom =
+        doc.scrollHeight - (window.innerHeight + window.pageYOffset);
+
+      // ✅ zona “pré-final”: mostra skeleton e também antecipa o fetch
+      const prefetchZone = distanceToBottom <= 800;
+
+      setNearBottom(prefetchZone);
+
+      if (prefetchZone && hasMore && !isLoading) {
         setPage((p) => p + 1);
       }
     };
@@ -141,14 +150,26 @@ const PhotoGallery = () => {
             Carregando...
           </p>
         ) : hasInteracted ? (
-          <FotoList fotos={fotosExibidas} setFotoAmpliada={setFotoAmpliada} />
+          <FotoList
+            fotos={fotosExibidas}
+            setFotoAmpliada={setFotoAmpliada}
+          />
         ) : (
           <p className="empty-message" aria-live="polite">
-            Nada por aqui. Curta ou baixe algumas imagens primeiro!
+            {categoria === "liked"
+              ? "Você ainda não curtiu nenhuma foto."
+              : "Você ainda não baixou nenhuma foto."}
           </p>
         )
       ) : (
-        <FotoList fotos={fotosExibidas} setFotoAmpliada={setFotoAmpliada} />
+        <FotoList
+          fotos={fotosExibidas}
+          setFotoAmpliada={setFotoAmpliada}
+          showPlaceholders={
+            page > 1 && hasMore && (isLoading || nearBottom)
+          }
+        />
+
       )}
 
       {fotoAmpliada && (

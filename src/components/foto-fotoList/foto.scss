@@ -1,40 +1,79 @@
 .album {
-  display: grid;
-
-  /* Mobile */
-  grid-template-columns: 1fr;
-  grid-auto-rows: 200px;
+  display: flex;
+  width: 100%;
   gap: 16px;
   margin-bottom: 24px;
 
-  /* Tablet */
-  @media (min-width: 601px) and (max-width: 1024px) {
-    grid-template-columns: repeat(2, 1fr);
-    grid-auto-rows: 260px;  
-    gap: 16px;              
+  .album__col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 0;
   }
 
-  /* Desktop */
   @media (min-width: 1025px) {
-    grid-template-columns: repeat(2, 1fr);
-    grid-auto-rows: 300px; 
-    gap: 24px;             
+    gap: 24px;
+
+    .album__col {
+      gap: 24px;
+    }
+  }
+
+  .album__placeholder {
+    width: 100%;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    overflow: hidden;
+    position: relative;
+  }
+
+  .album__placeholder::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.10),
+      transparent
+    );
+    animation: albumShimmer 1.2s infinite;
+  }
+}
+
+@keyframes albumShimmer {
+  100% {
+    transform: translateX(100%);
   }
 }
 
 .foto {
   overflow: hidden;
   border-radius: 12px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  width: 100%;
+
+  .foto__frame {
+    display: block;
+    width: 100%;
+    background: #0f0f0f;
+    border-radius: 12px;
+    overflow: hidden;
+
+    /* fallback caso width/height não venham */
+    aspect-ratio: 1 / 1;
+  }
 
   img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
-    transition: transform 0.3s ease;
+    object-fit: contain; /* imagem inteira, sem cortar */
+    display: block;
     cursor: pointer;
-  }
-
-  &:hover img {
-    transform: scale(1.05);
   }
 }

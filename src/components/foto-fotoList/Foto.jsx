@@ -1,7 +1,11 @@
 const Foto = ({ dados, setFotoAmpliada }) => {
+  if (!dados?.urls?.small) return null;
+
   const {
     urls: { small },
     alt_description,
+    width,
+    height,
   } = dados;
 
   const handleClick = () => setFotoAmpliada(dados);
@@ -13,6 +17,8 @@ const Foto = ({ dados, setFotoAmpliada }) => {
     }
   };
 
+  const aspectRatio = width && height ? `${width} / ${height}` : "1 / 1";
+
   return (
     <button
       type="button"
@@ -22,12 +28,14 @@ const Foto = ({ dados, setFotoAmpliada }) => {
       aria-label="Visualizar foto ampliada"
       role="listitem"
     >
-      <img
-        src={small}
-        alt={alt_description || "Foto sem descrição"}
-        loading="lazy"
-        decoding="async"
-      />
+      <span className="foto__frame" style={{ aspectRatio }}>
+        <img
+          src={small}
+          alt={alt_description || "Foto sem descrição"}
+          loading="lazy"
+          decoding="async"
+        />
+      </span>
     </button>
   );
 };
