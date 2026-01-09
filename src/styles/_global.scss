@@ -17,3 +17,15 @@ body{
     max-width: 1200px; 
   }
 }
+
+a,
+button,
+input,
+textarea,
+select,
+summary,
+[role="button"],
+[tabindex],
+[onclick] {
+  -webkit-tap-highlight-color: transparent;
+}

@@ -21,9 +21,6 @@ export const setLike = async (imageId, value) => {
   const existing = await getInteraction(imageId);
   const wantsLike = Boolean(value);
 
-  // Se não existe linha:
-  // - curtir cria
-  // - descurtir não faz nada
   if (!existing) {
     if (!wantsLike) return;
 
@@ -44,9 +41,7 @@ export const setLike = async (imageId, value) => {
 
   const downloads = Number(existing.downloads || 0);
 
-  // DESCURTIR
   if (!wantsLike) {
-    // Se downloads=0 -> apaga a linha inteira (se nunca tivesse existido)
     if (downloads === 0) {
       const { error: delError } = await supabase
         .from("interactions")
@@ -54,7 +49,6 @@ export const setLike = async (imageId, value) => {
         .eq("id", existing.id);
 
       if (delError) {
-        // Se delete falhar por policy, pelo menos zera o like (não quebra UI/categoria)
         console.warn("DELETE bloqueado; fallback para likes=0:", delError);
 
         const { error: updateError } = await supabase
@@ -71,7 +65,6 @@ export const setLike = async (imageId, value) => {
       return;
     }
 
-    // Se downloads>0 -> mantém linha e zera like
     const { error: updateError } = await supabase
       .from("interactions")
       .update({ likes: 0 })
@@ -85,7 +78,6 @@ export const setLike = async (imageId, value) => {
     return;
   }
 
-  // CURTIR: sempre likes=1 (binário)
   const { error } = await supabase
     .from("interactions")
     .update({ likes: 1 })

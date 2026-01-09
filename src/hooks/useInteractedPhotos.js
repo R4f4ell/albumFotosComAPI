@@ -29,7 +29,7 @@ export function useInteractedPhotos(categoria, onReady) {
     const onLikesChanged = () => {
       cache.current.liked = null;
       refreshKey.current += 1;
-      if (categoria === "liked") setPhotos([]); // força repaint limpo
+      if (categoria === "liked") setPhotos([]);
     };
 
     const onDownloadsChanged = () => {
@@ -96,7 +96,6 @@ export function useInteractedPhotos(categoria, onReady) {
     return () => {
       canceled = true;
     };
-    // refreshKey.current muda via evento, e a mudança de categoria já reinvoca
   }, [categoria, onReady, refreshKey.current]);
 
   return photos;

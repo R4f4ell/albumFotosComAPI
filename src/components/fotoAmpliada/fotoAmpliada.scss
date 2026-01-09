@@ -120,10 +120,9 @@
       }
 
       .like-btn {
-        /* remove cursor proibido de vez */
         &[data-pending="true"] {
           opacity: 0.9;
-          cursor: pointer; /* <- aqui fica normal, sem bloqueio */
+          cursor: pointer; 
         }
 
         .con-like {

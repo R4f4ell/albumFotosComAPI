@@ -8,16 +8,11 @@ const FotoAmpliada = ({ foto, setFotoAmpliada }) => {
   const [liked, setLiked] = useState(false);
   const [likePending, setLikePending] = useState(false);
   const [likeBurst, setLikeBurst] = useState(false);
-
   const imageRef = useRef(null);
   const closeBtnRef = useRef(null);
   const lastFocusedRef = useRef(null);
   const containerRef = useRef(null);
-
-  // evita “duplo clique” por pending
   const likePendingRef = useRef(false);
-
-  // impede o load async de sobrescrever após clique do usuário
   const userInteractedRef = useRef(false);
   const loadSeqRef = useRef(0);
 
@@ -73,7 +68,6 @@ const FotoAmpliada = ({ foto, setFotoAmpliada }) => {
     };
   }, []);
 
-  // carrega estado do like sem sobrescrever clique rápido
   useEffect(() => {
     if (!foto?.id) return;
 
@@ -85,7 +79,6 @@ const FotoAmpliada = ({ foto, setFotoAmpliada }) => {
       const interaction = await getInteraction(foto.id);
       if (canceled) return;
 
-      // se mudou de foto ou usuário já clicou, não sobrescreve
       if (seq !== loadSeqRef.current) return;
       if (userInteractedRef.current) return;
 
@@ -112,7 +105,6 @@ const FotoAmpliada = ({ foto, setFotoAmpliada }) => {
     e.stopPropagation();
     if (!foto?.id) return;
 
-    // trava imediata (ref) + estado pra UI
     if (likePendingRef.current) return;
 
     userInteractedRef.current = true;
@@ -122,7 +114,6 @@ const FotoAmpliada = ({ foto, setFotoAmpliada }) => {
     likePendingRef.current = true;
     setLikePending(true);
 
-    // UI otimista
     setLiked(next);
     if (next) triggerBurst();
 
