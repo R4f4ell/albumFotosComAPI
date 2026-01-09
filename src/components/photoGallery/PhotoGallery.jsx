@@ -10,7 +10,6 @@ import { useFilteredPhotos } from "../../hooks/useFilteredPhotos";
 import { listPhotos, searchPhotos } from "../../lib/unsplash";
 import "./photoGallery.scss";
 
-// Unsplash costuma limitar per_page (geralmente 30).
 const IMAGES_PER_PAGE = 30;
 
 const CATEGORY_QUERY_MAP = {
@@ -80,7 +79,6 @@ const PhotoGallery = () => {
 
       const effectiveQuery = getEffectiveQuery();
 
-      // cancela request anterior (evita corrida)
       if (abortRef.current) abortRef.current.abort();
       abortRef.current = new AbortController();
 
@@ -122,7 +120,6 @@ const PhotoGallery = () => {
           setHasMore(Array.isArray(results) && results.length === IMAGES_PER_PAGE);
         }
       } catch (err) {
-        // AbortController cai aqui quando troca categoria/busca rápido (ok)
         if (err?.name === "CanceledError" || err?.name === "AbortError") return;
         console.error("Erro ao buscar imagens:", err);
       } finally {
@@ -138,7 +135,6 @@ const PhotoGallery = () => {
     fetchImages({ reset: true, pageToFetch: 1 });
   }, [fetchImages]);
 
-  // disparo manual vindo do SearchBar (submit/select)
   useEffect(() => {
     if (!activateSearch) return;
 
@@ -160,7 +156,6 @@ const PhotoGallery = () => {
     fetchImages({ reset: false, pageToFetch: page });
   }, [page, fetchImages]);
 
-  // troca de categoria (limpa estado e desliga paginação quando é Curtidas/Baixadas)
   useEffect(() => {
     setFotos([]);
     setNearBottom(false);
@@ -177,7 +172,6 @@ const PhotoGallery = () => {
     setInteractedReady(true);
   }, [categoria]);
 
-  // scroll infinito com lock (não deixa pular páginas)
   useEffect(() => {
     const handleScroll = () => {
       const doc = document.documentElement;
@@ -193,7 +187,6 @@ const PhotoGallery = () => {
       if (!hasMoreRef.current) return;
       if (isFetchingRef.current) return;
 
-      // lock imediato (evita vários increments no mesmo scroll)
       isFetchingRef.current = true;
       setPage((p) => p + 1);
     };

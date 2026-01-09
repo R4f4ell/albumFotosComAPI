@@ -13,6 +13,7 @@ const FotoAmpliada = ({ foto, setFotoAmpliada }) => {
   const imageRef = useRef(null);
   const closeBtnRef = useRef(null);
   const lastFocusedRef = useRef(null);
+  const containerRef = useRef(null);
 
   useEffect(() => {
     lastFocusedRef.current = document.activeElement;
@@ -105,9 +106,13 @@ const FotoAmpliada = ({ foto, setFotoAmpliada }) => {
 
   const onEnter = () => {
     if (window.innerWidth < 1024) return;
+
     const prefersReducedMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)"
     ).matches;
+
+    containerRef.current?.classList.add("is-zooming");
+
     if (!prefersReducedMotion) {
       imageRef.current.style.transform = "scale(2)";
     }
@@ -115,6 +120,9 @@ const FotoAmpliada = ({ foto, setFotoAmpliada }) => {
 
   const onLeave = () => {
     if (window.innerWidth < 1024) return;
+
+    containerRef.current?.classList.remove("is-zooming");
+
     imageRef.current.style.transform = "scale(1)";
     imageRef.current.style.transformOrigin = "center center";
   };
@@ -126,6 +134,7 @@ const FotoAmpliada = ({ foto, setFotoAmpliada }) => {
       aria-label="Plano de fundo do modal de imagem"
     >
       <div
+        ref={containerRef}
         className="foto-ampliada-container"
         onClick={(e) => e.stopPropagation()}
         role="dialog"

@@ -61,7 +61,6 @@ export function useInteractedPhotos(categoria, onReady) {
 
       if (!canceled) {
         setPhotos(list);
-        // se já está em cache, agendo o onReady para rodar após o reset do pai
         Promise.resolve().then(() => {
           if (!canceled) onReady && onReady();
         });

@@ -26,7 +26,6 @@ const SearchBar = ({ setQuery, setCategoria, setActivateSearch }) => {
   };
 
   const handleSelect = (value) => {
-    // categoria não mistura com pesquisa antiga
     setLocalQuery("");
     setQuery("");
 

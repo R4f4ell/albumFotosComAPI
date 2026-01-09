@@ -42,7 +42,7 @@
       min-width: 0;
       box-sizing: border-box;
       border: 1px solid vars.$corGlobal;
-      border-radius: 8px; /* ✅ padronizado com botão */
+      border-radius: 8px;
       outline: none;
       transition: border-color 0.2s ease, box-shadow 0.2s ease;
 
@@ -61,10 +61,6 @@
       }
     }
 
-    /* ===========================
-       SELECT CUSTOM (MODERNO)
-       =========================== */
-
     .select-trigger {
       padding: 12px 16px 12px 36px;
       font-size: 1rem;
@@ -75,7 +71,7 @@
       min-width: 0;
       box-sizing: border-box;
       border: 1px solid vars.$corGlobal;
-      border-radius: 8px; /* ✅ padronizado */
+      border-radius: 8px;
       outline: none;
       cursor: pointer;
       display: flex;
