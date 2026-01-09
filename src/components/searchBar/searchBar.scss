@@ -79,6 +79,7 @@
       justify-content: space-between;
       gap: 12px;
       transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      -webkit-tap-highlight-color: transparent;
 
       &:hover {
         border-color: vars.$corGlobal;
@@ -109,6 +110,7 @@
       z-index: 20;
       box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55);
       overflow: hidden;
+      -webkit-tap-highlight-color: transparent;
     }
 
     .select-options li {
@@ -119,6 +121,7 @@
       font-family: 'Inter', system-ui, sans-serif;
       cursor: pointer;
       transition: background 0.18s ease, transform 0.18s ease;
+      -webkit-tap-highlight-color: transparent;
 
       &:hover {
         background: rgba(239, 68, 68, 0.22);
