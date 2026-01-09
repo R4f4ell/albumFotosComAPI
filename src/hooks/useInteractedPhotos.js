@@ -23,6 +23,29 @@ async function fetchInBatches(ids, batchSize, onChunk) {
 export function useInteractedPhotos(categoria, onReady) {
   const [photos, setPhotos] = useState([]);
   const cache = useRef({ liked: null, downloaded: null });
+  const refreshKey = useRef(0);
+
+  useEffect(() => {
+    const onLikesChanged = () => {
+      cache.current.liked = null;
+      refreshKey.current += 1;
+      if (categoria === "liked") setPhotos([]); // força repaint limpo
+    };
+
+    const onDownloadsChanged = () => {
+      cache.current.downloaded = null;
+      refreshKey.current += 1;
+      if (categoria === "downloaded") setPhotos([]);
+    };
+
+    window.addEventListener("likes:changed", onLikesChanged);
+    window.addEventListener("downloads:changed", onDownloadsChanged);
+
+    return () => {
+      window.removeEventListener("likes:changed", onLikesChanged);
+      window.removeEventListener("downloads:changed", onDownloadsChanged);
+    };
+  }, [categoria]);
 
   useEffect(() => {
     if (categoria !== "liked" && categoria !== "downloaded") return;
@@ -33,6 +56,8 @@ export function useInteractedPhotos(categoria, onReady) {
       let list = cache.current[categoria];
 
       if (!list) {
+        setPhotos([]);
+
         const ids =
           categoria === "liked"
             ? await getLikedImageIds()
@@ -49,6 +74,7 @@ export function useInteractedPhotos(categoria, onReady) {
 
         const batchSize = 6;
         const incremental = [];
+
         await fetchInBatches(ids, batchSize, (chunk) => {
           incremental.push(...chunk);
           if (!canceled) setPhotos((prev) => [...prev, ...chunk]);
@@ -70,7 +96,8 @@ export function useInteractedPhotos(categoria, onReady) {
     return () => {
       canceled = true;
     };
-  }, [categoria, onReady]);
+    // refreshKey.current muda via evento, e a mudança de categoria já reinvoca
+  }, [categoria, onReady, refreshKey.current]);
 
   return photos;
 }

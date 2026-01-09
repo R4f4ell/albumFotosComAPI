@@ -118,6 +118,109 @@
           box-shadow: none;
         }
       }
+
+      .like-btn {
+        /* remove cursor proibido de vez */
+        &[data-pending="true"] {
+          opacity: 0.9;
+          cursor: pointer; /* <- aqui fica normal, sem bloqueio */
+        }
+
+        .con-like {
+          --red: #ff0000;
+
+          position: relative;
+          width: 24px;
+          height: 24px;
+          display: block;
+          pointer-events: none;
+
+          .checkmark {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+          }
+
+          .outline,
+          .filled {
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            fill: #ffffff;
+          }
+
+          .filled {
+            display: none;
+            fill: var(--red);
+          }
+
+          &.is-liked {
+            .filled {
+              display: block;
+            }
+          }
+
+          .celebrate {
+            position: absolute;
+            width: 44px;
+            height: 44px;
+            display: none;
+          }
+
+          .poly {
+            stroke: var(--red);
+            fill: var(--red);
+          }
+
+          &.is-animating {
+            .filled {
+              animation: kfr-filled 0.5s;
+            }
+
+            .celebrate {
+              display: block;
+              animation: kfr-celebrate 0.5s forwards;
+            }
+          }
+        }
+
+        @keyframes kfr-filled {
+          0% {
+            opacity: 0;
+            transform: scale(0);
+          }
+
+          50% {
+            opacity: 1;
+            transform: scale(1.2);
+          }
+
+          100% {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+
+        @keyframes kfr-celebrate {
+          0% {
+            transform: scale(0);
+            opacity: 0;
+          }
+
+          50% {
+            opacity: 0.8;
+            transform: scale(1.1);
+          }
+
+          100% {
+            transform: scale(1.2);
+            opacity: 0;
+          }
+        }
+      }
     }
   }
 }

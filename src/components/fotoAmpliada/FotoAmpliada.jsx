@@ -1,19 +1,25 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { X, Heart, Download } from "lucide-react";
+import { X, Download } from "lucide-react";
 import "./fotoAmpliada.scss";
 
-import {
-  getInteraction,
-  incrementLike,
-  incrementDownload,
-} from "../../utils/interactions";
+import { getInteraction, setLike, incrementDownload } from "../../utils/interactions";
 
 const FotoAmpliada = ({ foto, setFotoAmpliada }) => {
   const [liked, setLiked] = useState(false);
+  const [likePending, setLikePending] = useState(false);
+  const [likeBurst, setLikeBurst] = useState(false);
+
   const imageRef = useRef(null);
   const closeBtnRef = useRef(null);
   const lastFocusedRef = useRef(null);
   const containerRef = useRef(null);
+
+  // evita “duplo clique” por pending
+  const likePendingRef = useRef(false);
+
+  // impede o load async de sobrescrever após clique do usuário
+  const userInteractedRef = useRef(false);
+  const loadSeqRef = useRef(0);
 
   useEffect(() => {
     lastFocusedRef.current = document.activeElement;
@@ -67,33 +73,100 @@ const FotoAmpliada = ({ foto, setFotoAmpliada }) => {
     };
   }, []);
 
+  // carrega estado do like sem sobrescrever clique rápido
   useEffect(() => {
-    const load = async () => {
-      const interaction = await getInteraction(foto.id);
-      if (interaction?.likes > 0) setLiked(true);
-    };
-    if (foto?.id) load();
-  }, [foto]);
+    if (!foto?.id) return;
 
-  const handleLike = (e) => {
+    userInteractedRef.current = false;
+    const seq = ++loadSeqRef.current;
+    let canceled = false;
+
+    (async () => {
+      const interaction = await getInteraction(foto.id);
+      if (canceled) return;
+
+      // se mudou de foto ou usuário já clicou, não sobrescreve
+      if (seq !== loadSeqRef.current) return;
+      if (userInteractedRef.current) return;
+
+      setLiked((interaction?.likes ?? 0) > 0);
+    })();
+
+    return () => {
+      canceled = true;
+    };
+  }, [foto?.id]);
+
+  const triggerBurst = () => {
+    const prefersReducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+
+    if (prefersReducedMotion) return;
+
+    setLikeBurst(true);
+    window.setTimeout(() => setLikeBurst(false), 520);
+  };
+
+  const handleToggleLike = async (e) => {
     e.stopPropagation();
-    if (!liked) {
-      setLiked(true);
-      incrementLike(foto.id).catch(console.error);
+    if (!foto?.id) return;
+
+    // trava imediata (ref) + estado pra UI
+    if (likePendingRef.current) return;
+
+    userInteractedRef.current = true;
+
+    const next = !liked;
+
+    likePendingRef.current = true;
+    setLikePending(true);
+
+    // UI otimista
+    setLiked(next);
+    if (next) triggerBurst();
+
+    try {
+      await setLike(foto.id, next);
+
+      window.dispatchEvent(
+        new CustomEvent("likes:changed", {
+          detail: { imageId: foto.id, liked: next },
+        })
+      );
+    } catch (err) {
+      console.error(err);
+      // rollback
+      setLiked(!next);
+    } finally {
+      likePendingRef.current = false;
+      setLikePending(false);
     }
   };
 
   const handleDownload = async (e) => {
     e.stopPropagation();
+
     const res = await fetch(foto.urls.full);
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
+
     const a = document.createElement("a");
     a.href = url;
     a.download = `${foto.id}.jpg`;
     a.click();
+
     URL.revokeObjectURL(url);
-    incrementDownload(foto.id).catch(console.error);
+
+    incrementDownload(foto.id)
+      .then(() => {
+        window.dispatchEvent(
+          new CustomEvent("downloads:changed", {
+            detail: { imageId: foto.id },
+          })
+        );
+      })
+      .catch(console.error);
   };
 
   const onMove = (e) => {
@@ -163,23 +236,40 @@ const FotoAmpliada = ({ foto, setFotoAmpliada }) => {
         <div className="modal-actions" role="group" aria-label="Ações da imagem">
           <button
             className="like-btn"
-            onClick={handleLike}
+            onClick={handleToggleLike}
             aria-pressed={liked}
-            aria-label={liked ? "Imagem curtida" : "Curtir imagem"}
+            aria-label={liked ? "Remover curtida" : "Curtir imagem"}
+            aria-disabled={likePending}
+            data-pending={likePending ? "true" : "false"}
           >
-            <Heart
-              fill={liked ? "#ff0000" : "none"}
-              color={liked ? "#ff0000" : "#ffffff"}
+            <span
+              className={`con-like ${liked ? "is-liked" : ""} ${
+                likeBurst ? "is-animating" : ""
+              }`}
               aria-hidden="true"
-              focusable="false"
-            />
+            >
+              <span className="checkmark">
+                <svg xmlns="http://www.w3.org/2000/svg" className="outline" viewBox="0 0 24 24">
+                  <path d="M17.5,1.917a6.4,6.4,0,0,0-5.5,3.3,6.4,6.4,0,0,0-5.5-3.3A6.8,6.8,0,0,0,0,8.967c0,4.547,4.786,9.513,8.8,12.88a4.974,4.974,0,0,0,6.4,0C19.214,18.48,24,13.514,24,8.967A6.8,6.8,0,0,0,17.5,1.917Zm-3.585,18.4a2.973,2.973,0,0,1-3.83,0C4.947,16.006,2,11.87,2,8.967a4.8,4.8,0,0,1,4.5-5.05A4.8,4.8,0,0,1,11,8.967a1,1,0,0,0,2,0,4.8,4.8,0,0,1,4.5-5.05A4.8,4.8,0,0,1,22,8.967C22,11.87,19.053,16.006,13.915,20.313Z"></path>
+                </svg>
+
+                <svg xmlns="http://www.w3.org/2000/svg" className="filled" viewBox="0 0 24 24">
+                  <path d="M17.5,1.917a6.4,6.4,0,0,0-5.5,3.3,6.4,6.4,0,0,0-5.5-3.3A6.8,6.8,0,0,0,0,8.967c0,4.547,4.786,9.513,8.8,12.88a4.974,4.974,0,0,0,6.4,0C19.214,18.48,24,13.514,24,8.967A6.8,6.8,0,0,0,17.5,1.917Z"></path>
+                </svg>
+
+                <svg xmlns="http://www.w3.org/2000/svg" className="celebrate" viewBox="0 0 100 100">
+                  <polygon className="poly" points="10,10 20,20"></polygon>
+                  <polygon className="poly" points="10,50 20,50"></polygon>
+                  <polygon className="poly" points="20,80 30,70"></polygon>
+                  <polygon className="poly" points="90,10 80,20"></polygon>
+                  <polygon className="poly" points="90,50 80,50"></polygon>
+                  <polygon className="poly" points="80,80 70,70"></polygon>
+                </svg>
+              </span>
+            </span>
           </button>
 
-          <button
-            className="download-btn"
-            onClick={handleDownload}
-            aria-label="Baixar imagem"
-          >
+          <button className="download-btn" onClick={handleDownload} aria-label="Baixar imagem">
             <Download aria-hidden="true" focusable="false" />
           </button>
         </div>
