@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import SearchBar from "../searchBar/SearchBar";
 import FotoList from "../foto-fotoList/FotoList";
 import FotoAmpliada from "../fotoAmpliada/FotoAmpliada";
@@ -10,20 +10,41 @@ import { useFilteredPhotos } from "../../hooks/useFilteredPhotos";
 import { listPhotos, searchPhotos } from "../../lib/unsplash";
 import "./photoGallery.scss";
 
-const IMAGES_PER_PAGE = 6;
+// Unsplash costuma limitar per_page (geralmente 30).
+const IMAGES_PER_PAGE = 30;
+
+const CATEGORY_QUERY_MAP = {
+  Natureza: "nature",
+  Pessoas: "people",
+  Tecnologia: "technology",
+  Animais: "animals",
+  Esportes: "sports",
+};
 
 const PhotoGallery = () => {
   const [fotos, setFotos] = useState([]);
   const [query, setQuery] = useState("");
   const [categoria, setCategoria] = useState("");
   const [activateSearch, setActivateSearch] = useState(false);
+
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
+
   const [fotoAmpliada, setFotoAmpliada] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+
   const [interactedReady, setInteractedReady] = useState(false);
   const [nearBottom, setNearBottom] = useState(false);
+
   const debouncedQuery = useDebounce(query, 400);
+
+  const abortRef = useRef(null);
+  const isFetchingRef = useRef(false);
+  const hasMoreRef = useRef(false);
+
+  useEffect(() => {
+    hasMoreRef.current = hasMore;
+  }, [hasMore]);
 
   const isInteractedCategory = useMemo(
     () => categoria === "liked" || categoria === "downloaded",
@@ -43,72 +64,120 @@ const PhotoGallery = () => {
     interactedPhotos,
   });
 
-  const fetchImages = async (reset = false) => {
-    if (isInteractedCategory) return;
+  const getEffectiveQuery = useCallback(() => {
+    if (debouncedQuery) return debouncedQuery;
 
-    const searchQuery = [debouncedQuery, categoria].filter(Boolean).join(" ");
-    const params = {
-      page,
-      per_page: IMAGES_PER_PAGE,
-      ...(searchQuery ? { query: searchQuery } : {}),
-    };
-
-    setIsLoading(true);
-    try {
-      const res = searchQuery ? await searchPhotos(params) : await listPhotos(params);
-
-      if (res.status >= 400) {
-        console.error("Erro ao buscar imagens:", res.status, res.data);
-        return;
-      }
-
-      const results = searchQuery ? res.data.results : res.data;
-
-      setFotos((prev) => {
-        if (reset) return results;
-        const prevIds = new Set(prev.map((f) => f.id));
-        const unique = results.filter((f) => !prevIds.has(f.id));
-        return [...prev, ...unique];
-      });
-
-      setHasMore(
-        searchQuery ? page < res.data.total_pages : results.length === IMAGES_PER_PAGE
-      );
-    } catch (err) {
-      console.error("Erro ao buscar imagens:", err);
-    } finally {
-      setIsLoading(false);
+    if (categoria && !isInteractedCategory) {
+      return CATEGORY_QUERY_MAP[categoria] ?? categoria;
     }
-  };
 
+    return "";
+  }, [debouncedQuery, categoria, isInteractedCategory]);
+
+  const fetchImages = useCallback(
+    async ({ reset = false, pageToFetch = 1 } = {}) => {
+      if (isInteractedCategory) return;
+
+      const effectiveQuery = getEffectiveQuery();
+
+      // cancela request anterior (evita corrida)
+      if (abortRef.current) abortRef.current.abort();
+      abortRef.current = new AbortController();
+
+      const params = {
+        page: pageToFetch,
+        per_page: IMAGES_PER_PAGE,
+      };
+
+      const shouldSearch = Boolean(effectiveQuery);
+      if (shouldSearch) params.query = effectiveQuery;
+
+      isFetchingRef.current = true;
+      setIsLoading(true);
+
+      try {
+        const res = shouldSearch
+          ? await searchPhotos(params, abortRef.current.signal)
+          : await listPhotos(params, abortRef.current.signal);
+
+        if (res.status >= 400) {
+          console.error("Erro ao buscar imagens:", res.status, res.data);
+          return;
+        }
+
+        const results = shouldSearch ? res.data?.results ?? [] : res.data ?? [];
+
+        setFotos((prev) => {
+          if (reset) return results;
+
+          const prevIds = new Set(prev.map((f) => f.id));
+          const unique = results.filter((f) => !prevIds.has(f.id));
+          return [...prev, ...unique];
+        });
+
+        if (shouldSearch) {
+          const totalPages = Number(res.data?.total_pages ?? 0);
+          setHasMore(pageToFetch < totalPages);
+        } else {
+          setHasMore(Array.isArray(results) && results.length === IMAGES_PER_PAGE);
+        }
+      } catch (err) {
+        // AbortController cai aqui quando troca categoria/busca rápido (ok)
+        if (err?.name === "CanceledError" || err?.name === "AbortError") return;
+        console.error("Erro ao buscar imagens:", err);
+      } finally {
+        setIsLoading(false);
+        isFetchingRef.current = false;
+      }
+    },
+    [getEffectiveQuery, isInteractedCategory]
+  );
+
+  // primeira carga
   useEffect(() => {
-    fetchImages(true);
-  }, []);
+    fetchImages({ reset: true, pageToFetch: 1 });
+  }, [fetchImages]);
 
+  // disparo manual vindo do SearchBar (submit/select)
   useEffect(() => {
     if (!activateSearch) return;
 
     if (!isInteractedCategory) {
+      setFotos([]);
+      setHasMore(false);
+      setNearBottom(false);
       setPage(1);
-      fetchImages(true);
+
+      fetchImages({ reset: true, pageToFetch: 1 });
     }
+
     setActivateSearch(false);
-  }, [activateSearch, isInteractedCategory]);
+  }, [activateSearch, isInteractedCategory, fetchImages]);
 
+  // paginação
   useEffect(() => {
-    if (page > 1) fetchImages();
-  }, [page]);
+    if (page <= 1) return;
+    fetchImages({ reset: false, pageToFetch: page });
+  }, [page, fetchImages]);
 
+  // troca de categoria (limpa estado e desliga paginação quando é Curtidas/Baixadas)
   useEffect(() => {
     setFotos([]);
+    setNearBottom(false);
 
     if (categoria === "liked" || categoria === "downloaded") {
+      setHasMore(false);
+      setPage(1);
       setInteractedReady(false);
-    } else {
-      setInteractedReady(true);
+
+      if (abortRef.current) abortRef.current.abort();
+      return;
     }
+
+    setInteractedReady(true);
   }, [categoria]);
 
+  // scroll infinito com lock (não deixa pular páginas)
   useEffect(() => {
     const handleScroll = () => {
       const doc = document.documentElement;
@@ -120,14 +189,18 @@ const PhotoGallery = () => {
 
       setNearBottom(prefetchZone);
 
-      if (prefetchZone && hasMore && !isLoading) {
-        setPage((p) => p + 1);
-      }
+      if (!prefetchZone) return;
+      if (!hasMoreRef.current) return;
+      if (isFetchingRef.current) return;
+
+      // lock imediato (evita vários increments no mesmo scroll)
+      isFetchingRef.current = true;
+      setPage((p) => p + 1);
     };
 
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [hasMore, isLoading]);
+  }, []);
 
   const hasInteracted = interactedPhotos.length > 0;
 
@@ -145,10 +218,7 @@ const PhotoGallery = () => {
             Carregando...
           </p>
         ) : hasInteracted ? (
-          <FotoList
-            fotos={fotosExibidas}
-            setFotoAmpliada={setFotoAmpliada}
-          />
+          <FotoList fotos={fotosExibidas} setFotoAmpliada={setFotoAmpliada} />
         ) : (
           <p className="empty-message" aria-live="polite">
             {categoria === "liked"
@@ -160,11 +230,8 @@ const PhotoGallery = () => {
         <FotoList
           fotos={fotosExibidas}
           setFotoAmpliada={setFotoAmpliada}
-          showPlaceholders={
-            page > 1 && hasMore && (isLoading || nearBottom)
-          }
+          showPlaceholders={page > 1 && hasMore && (isLoading || nearBottom)}
         />
-
       )}
 
       {fotoAmpliada && (

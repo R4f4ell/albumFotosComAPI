@@ -17,6 +17,7 @@ const SearchBar = ({ setQuery, setCategoria, setActivateSearch }) => {
 
   const handleSearch = (e) => {
     if (e?.preventDefault) e.preventDefault();
+
     setQuery(localQuery.trim());
     setCategoria("");
     setSelectedValue("");
@@ -25,6 +26,10 @@ const SearchBar = ({ setQuery, setCategoria, setActivateSearch }) => {
   };
 
   const handleSelect = (value) => {
+    // categoria não mistura com pesquisa antiga
+    setLocalQuery("");
+    setQuery("");
+
     setSelectedValue(value);
     setCategoria(value);
     setActivateSearch(true);
@@ -75,7 +80,6 @@ const SearchBar = ({ setQuery, setCategoria, setActivateSearch }) => {
         Pesquisar
       </button>
 
-      {/* SELECT CUSTOM (substitui o <select> nativo) */}
       <div className="select-wrapper" ref={dropdownRef}>
         <List className="icon" size={18} aria-hidden="true" focusable="false" />
 

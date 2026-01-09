@@ -10,6 +10,11 @@ export const unsplash = axios.create({
   },
 });
 
-export const listPhotos   = (params) => unsplash.get("/photos", { params });
-export const searchPhotos = (params) => unsplash.get("/search/photos", { params });
-export const getPhotoById = (id)     => unsplash.get(`/photos/${id}`);
+export const listPhotos = (params, signal) =>
+  unsplash.get("/photos", { params, signal });
+
+export const searchPhotos = (params, signal) =>
+  unsplash.get("/search/photos", { params, signal });
+
+export const getPhotoById = (id, signal) =>
+  unsplash.get(`/photos/${id}`, { signal });
