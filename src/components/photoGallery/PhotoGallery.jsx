@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { X } from "lucide-react";
 import SearchBar from "../searchBar/SearchBar";
 import FotoList from "../foto-fotoList/FotoList";
 import FotoAmpliada from "../fotoAmpliada/FotoAmpliada";
@@ -8,6 +9,7 @@ import { useInteractedPhotos } from "../../hooks/useInteractedPhotos";
 import { useFilteredPhotos } from "../../hooks/useFilteredPhotos";
 
 import { listPhotos, searchPhotos } from "../../lib/unsplash";
+import { getLikedImageIds, getDownloadedImageIds } from "../../utils/interactions";
 import "./photoGallery.scss";
 
 const IMAGES_PER_PAGE = 30;
@@ -62,6 +64,22 @@ const PhotoGallery = () => {
     query: debouncedQuery,
     interactedPhotos,
   });
+
+  // aquece cache das abas em idle
+  useEffect(() => {
+    const warm = () => {
+      getLikedImageIds().catch(() => {});
+      getDownloadedImageIds().catch(() => {});
+    };
+
+    if ("requestIdleCallback" in window) {
+      const id = window.requestIdleCallback(warm, { timeout: 1500 });
+      return () => window.cancelIdleCallback(id);
+    }
+
+    const t = setTimeout(warm, 600);
+    return () => clearTimeout(t);
+  }, []);
 
   const getEffectiveQuery = useCallback(() => {
     if (debouncedQuery) return debouncedQuery;
@@ -195,7 +213,12 @@ const PhotoGallery = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const hasInteracted = interactedPhotos.length > 0;
+  const hasInteracted = fotosExibidas.length > 0;
+
+  const emptyText =
+    categoria === "liked"
+      ? "Você ainda não curtiu nenhuma imagem"
+      : "Você ainda não baixou nenhuma imagem";
 
   return (
     <section className="photo-gallery" aria-label="Galeria de fotos">
@@ -213,11 +236,10 @@ const PhotoGallery = () => {
         ) : hasInteracted ? (
           <FotoList fotos={fotosExibidas} setFotoAmpliada={setFotoAmpliada} />
         ) : (
-          <p className="empty-message" aria-live="polite">
-            {categoria === "liked"
-              ? "Você ainda não curtiu nenhuma foto."
-              : "Você ainda não baixou nenhuma foto."}
-          </p>
+          <div className="empty-state" role="status" aria-live="polite">
+            <X className="empty-icon" aria-hidden="true" />
+            <p className="empty-message">{emptyText}</p>
+          </div>
         )
       ) : (
         <FotoList

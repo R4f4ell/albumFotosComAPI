@@ -2,10 +2,19 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { X, Download } from "lucide-react";
 import "./fotoAmpliada.scss";
 
-import { getInteraction, setLike, incrementDownload } from "../../utils/interactions";
+import {
+  getInteraction,
+  setLike,
+  incrementDownload,
+  getCachedLike,
+  setCachedLike,
+  markCachedDownload,
+} from "../../utils/interactions";
 
 const FotoAmpliada = ({ foto, setFotoAmpliada }) => {
-  const [liked, setLiked] = useState(false);
+  const [liked, setLiked] = useState(() =>
+    foto?.id ? getCachedLike(foto.id) : false
+  );
   const [likePending, setLikePending] = useState(false);
   const [likeBurst, setLikeBurst] = useState(false);
   const imageRef = useRef(null);
@@ -71,6 +80,9 @@ const FotoAmpliada = ({ foto, setFotoAmpliada }) => {
   useEffect(() => {
     if (!foto?.id) return;
 
+    // ✅ resolve o delay: pinta o coração IMEDIATO do cache local
+    setLiked(getCachedLike(foto.id));
+
     userInteractedRef.current = false;
     const seq = ++loadSeqRef.current;
     let canceled = false;
@@ -82,7 +94,12 @@ const FotoAmpliada = ({ foto, setFotoAmpliada }) => {
       if (seq !== loadSeqRef.current) return;
       if (userInteractedRef.current) return;
 
-      setLiked((interaction?.likes ?? 0) > 0);
+      // reconcilia com o DB
+      const dbLiked = (interaction?.likes ?? 0) > 0;
+
+      setLiked(dbLiked);
+      // garante cache local também
+      setCachedLike(foto.id, dbLiked);
     })();
 
     return () => {
@@ -114,7 +131,10 @@ const FotoAmpliada = ({ foto, setFotoAmpliada }) => {
     likePendingRef.current = true;
     setLikePending(true);
 
+    // ✅ UI imediata + cache imediato (evita delay ao reabrir modal)
     setLiked(next);
+    setCachedLike(foto.id, next);
+
     if (next) triggerBurst();
 
     try {
@@ -122,13 +142,15 @@ const FotoAmpliada = ({ foto, setFotoAmpliada }) => {
 
       window.dispatchEvent(
         new CustomEvent("likes:changed", {
-          detail: { imageId: foto.id, liked: next },
+          detail: { imageId: foto.id, liked: next, photo: foto },
         })
       );
     } catch (err) {
       console.error(err);
+
       // rollback
       setLiked(!next);
+      setCachedLike(foto.id, !next);
     } finally {
       likePendingRef.current = false;
       setLikePending(false);
@@ -149,11 +171,14 @@ const FotoAmpliada = ({ foto, setFotoAmpliada }) => {
 
     URL.revokeObjectURL(url);
 
+    // ✅ cache local já marca download (aba "Baixadas" fica mais rápida)
+    markCachedDownload(foto.id);
+
     incrementDownload(foto.id)
       .then(() => {
         window.dispatchEvent(
           new CustomEvent("downloads:changed", {
-            detail: { imageId: foto.id },
+            detail: { imageId: foto.id, photo: foto },
           })
         );
       })
@@ -231,6 +256,7 @@ const FotoAmpliada = ({ foto, setFotoAmpliada }) => {
             aria-pressed={liked}
             aria-label={liked ? "Remover curtida" : "Curtir imagem"}
             aria-disabled={likePending}
+            disabled={likePending}
             data-pending={likePending ? "true" : "false"}
           >
             <span
@@ -240,15 +266,27 @@ const FotoAmpliada = ({ foto, setFotoAmpliada }) => {
               aria-hidden="true"
             >
               <span className="checkmark">
-                <svg xmlns="http://www.w3.org/2000/svg" className="outline" viewBox="0 0 24 24">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="outline"
+                  viewBox="0 0 24 24"
+                >
                   <path d="M17.5,1.917a6.4,6.4,0,0,0-5.5,3.3,6.4,6.4,0,0,0-5.5-3.3A6.8,6.8,0,0,0,0,8.967c0,4.547,4.786,9.513,8.8,12.88a4.974,4.974,0,0,0,6.4,0C19.214,18.48,24,13.514,24,8.967A6.8,6.8,0,0,0,17.5,1.917Zm-3.585,18.4a2.973,2.973,0,0,1-3.83,0C4.947,16.006,2,11.87,2,8.967a4.8,4.8,0,0,1,4.5-5.05A4.8,4.8,0,0,1,11,8.967a1,1,0,0,0,2,0,4.8,4.8,0,0,1,4.5-5.05A4.8,4.8,0,0,1,22,8.967C22,11.87,19.053,16.006,13.915,20.313Z"></path>
                 </svg>
 
-                <svg xmlns="http://www.w3.org/2000/svg" className="filled" viewBox="0 0 24 24">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="filled"
+                  viewBox="0 0 24 24"
+                >
                   <path d="M17.5,1.917a6.4,6.4,0,0,0-5.5,3.3,6.4,6.4,0,0,0-5.5-3.3A6.8,6.8,0,0,0,0,8.967c0,4.547,4.786,9.513,8.8,12.88a4.974,4.974,0,0,0,6.4,0C19.214,18.48,24,13.514,24,8.967A6.8,6.8,0,0,0,17.5,1.917Z"></path>
                 </svg>
 
-                <svg xmlns="http://www.w3.org/2000/svg" className="celebrate" viewBox="0 0 100 100">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="celebrate"
+                  viewBox="0 0 100 100"
+                >
                   <polygon className="poly" points="10,10 20,20"></polygon>
                   <polygon className="poly" points="10,50 20,50"></polygon>
                   <polygon className="poly" points="20,80 30,70"></polygon>
@@ -260,7 +298,11 @@ const FotoAmpliada = ({ foto, setFotoAmpliada }) => {
             </span>
           </button>
 
-          <button className="download-btn" onClick={handleDownload} aria-label="Baixar imagem">
+          <button
+            className="download-btn"
+            onClick={handleDownload}
+            aria-label="Baixar imagem"
+          >
             <Download aria-hidden="true" focusable="false" />
           </button>
         </div>

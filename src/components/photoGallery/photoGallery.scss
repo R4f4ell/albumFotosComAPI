@@ -1,13 +1,37 @@
 .photo-gallery {
   padding: 0 16px;
 
-  .empty-message,
   .loading-message {
     text-align: center;
     margin: 32px 0;
     font-size: 1.25rem;
     font-weight: 500;
-    color: white;
+    color: rgba(255, 255, 255, 0.78);
+  }
+
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin: 32px 0;
+    gap: 10px;
+    text-align: center;
+  }
+
+  .empty-icon {
+  width: clamp(32px, 6vw, 56px);
+  height: clamp(32px, 6vw, 56px);
+  color: rgba(255, 255, 255, 0.72);
+}
+
+
+  .empty-message {
+    margin: 0;
+    font-size: clamp(1.05rem, 2.4vw, 1.25rem);
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.78);
+    max-width: 42ch;
   }
 
   .load-more {

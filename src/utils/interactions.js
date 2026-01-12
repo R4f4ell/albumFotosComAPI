@@ -1,6 +1,110 @@
 import { supabase } from "../lib/supabase";
 import { getSessionId } from "./sessionId";
 
+/* =========================
+   Cache local (rápido)
+========================= */
+const STORAGE_PREFIX = "interactions:v1";
+
+const mem = {
+  sessionId: null,
+  hydrated: false,
+
+  likedIds: new Set(),
+  downloadedIds: new Set(),
+
+  // flags / promises para evitar spam de requests
+  likedFetchPromise: null,
+  downloadedFetchPromise: null,
+  likedFetchedFromDb: false,
+  downloadedFetchedFromDb: false,
+};
+
+function getLikedKey(sessionId) {
+  return `${STORAGE_PREFIX}:liked:${sessionId}`;
+}
+function getDownloadedKey(sessionId) {
+  return `${STORAGE_PREFIX}:downloaded:${sessionId}`;
+}
+
+function safeReadArray(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function safeWriteArray(key, arr) {
+  try {
+    localStorage.setItem(key, JSON.stringify(arr));
+  } catch {
+    // ignora (storage cheio / bloqueado)
+  }
+}
+
+function ensureHydrated() {
+  const sessionId = getSessionId();
+
+  if (mem.hydrated && mem.sessionId === sessionId) return sessionId;
+
+  mem.sessionId = sessionId;
+  mem.hydrated = true;
+
+  mem.likedIds = new Set();
+  mem.downloadedIds = new Set();
+
+  mem.likedFetchPromise = null;
+  mem.downloadedFetchPromise = null;
+  mem.likedFetchedFromDb = false;
+  mem.downloadedFetchedFromDb = false;
+
+  const likedArr = safeReadArray(getLikedKey(sessionId));
+  if (likedArr?.length) likedArr.forEach((id) => mem.likedIds.add(id));
+
+  const downloadedArr = safeReadArray(getDownloadedKey(sessionId));
+  if (downloadedArr?.length) downloadedArr.forEach((id) => mem.downloadedIds.add(id));
+
+  return sessionId;
+}
+
+function persistLiked(sessionId) {
+  safeWriteArray(getLikedKey(sessionId), Array.from(mem.likedIds));
+}
+function persistDownloaded(sessionId) {
+  safeWriteArray(getDownloadedKey(sessionId), Array.from(mem.downloadedIds));
+}
+
+export function getCachedLike(imageId) {
+  if (!imageId) return false;
+  ensureHydrated();
+  return mem.likedIds.has(imageId);
+}
+
+export function setCachedLike(imageId, value) {
+  if (!imageId) return;
+  const sessionId = ensureHydrated();
+
+  if (value) mem.likedIds.add(imageId);
+  else mem.likedIds.delete(imageId);
+
+  persistLiked(sessionId);
+}
+
+export function markCachedDownload(imageId) {
+  if (!imageId) return;
+  const sessionId = ensureHydrated();
+
+  mem.downloadedIds.add(imageId);
+  persistDownloaded(sessionId);
+}
+
+/* =========================
+   Supabase
+========================= */
 export const getInteraction = async (imageId) => {
   const sessionId = getSessionId();
 
@@ -22,7 +126,11 @@ export const setLike = async (imageId, value) => {
   const wantsLike = Boolean(value);
 
   if (!existing) {
-    if (!wantsLike) return;
+    if (!wantsLike) {
+      // cache local também remove (garante consistência)
+      setCachedLike(imageId, false);
+      return;
+    }
 
     const { error } = await supabase.from("interactions").insert({
       image_id: imageId,
@@ -35,6 +143,10 @@ export const setLike = async (imageId, value) => {
       console.error("Erro ao curtir (insert):", error);
       throw error;
     }
+
+    // cache local
+    setCachedLike(imageId, true);
+    mem.likedFetchedFromDb = true;
 
     return;
   }
@@ -62,6 +174,10 @@ export const setLike = async (imageId, value) => {
         }
       }
 
+      // cache local
+      setCachedLike(imageId, false);
+      mem.likedFetchedFromDb = true;
+
       return;
     }
 
@@ -75,6 +191,10 @@ export const setLike = async (imageId, value) => {
       throw updateError;
     }
 
+    // cache local
+    setCachedLike(imageId, false);
+    mem.likedFetchedFromDb = true;
+
     return;
   }
 
@@ -87,6 +207,10 @@ export const setLike = async (imageId, value) => {
     console.error("Erro ao curtir (update):", error);
     throw error;
   }
+
+  // cache local
+  setCachedLike(imageId, true);
+  mem.likedFetchedFromDb = true;
 };
 
 export const incrementLike = async (imageId) => setLike(imageId, true);
@@ -109,6 +233,10 @@ export const incrementDownload = async (imageId) => {
       throw error;
     }
 
+    // cache local
+    markCachedDownload(imageId);
+    mem.downloadedFetchedFromDb = true;
+
     return;
   }
 
@@ -123,38 +251,131 @@ export const incrementDownload = async (imageId) => {
     console.error("Erro ao registrar download (update):", error);
     throw error;
   }
+
+  // cache local (download > 0)
+  markCachedDownload(imageId);
+  mem.downloadedFetchedFromDb = true;
 };
 
 export const getLikedImageIds = async () => {
-  const sessionId = getSessionId();
+  const sessionId = ensureHydrated();
 
-  const { data, error } = await supabase
-    .from("interactions")
-    .select("image_id")
-    .eq("session_id", sessionId)
-    .gt("likes", 0);
+  // já buscou do DB antes: devolve direto
+  if (mem.likedFetchedFromDb) return Array.from(mem.likedIds);
 
-  if (error) {
-    console.error("Erro ao buscar imagens curtidas:", error);
-    return [];
+  // tem cache local (localStorage): devolve rápido e atualiza em background
+  if (mem.likedIds.size > 0) {
+    if (!mem.likedFetchPromise) {
+      mem.likedFetchPromise = (async () => {
+        const { data, error } = await supabase
+          .from("interactions")
+          .select("image_id")
+          .eq("session_id", sessionId)
+          .gt("likes", 0);
+
+        if (error) {
+          console.error("Erro ao buscar imagens curtidas:", error);
+          return Array.from(mem.likedIds);
+        }
+
+        const ids = data.map((row) => row.image_id);
+        mem.likedIds = new Set(ids);
+        persistLiked(sessionId);
+        mem.likedFetchedFromDb = true;
+
+        return ids;
+      })().finally(() => {
+        mem.likedFetchPromise = null;
+      });
+    }
+
+    return Array.from(mem.likedIds);
   }
 
-  return data.map((row) => row.image_id);
+  // sem cache local: busca do DB (await)
+  if (mem.likedFetchPromise) return mem.likedFetchPromise;
+
+  mem.likedFetchPromise = (async () => {
+    const { data, error } = await supabase
+      .from("interactions")
+      .select("image_id")
+      .eq("session_id", sessionId)
+      .gt("likes", 0);
+
+    if (error) {
+      console.error("Erro ao buscar imagens curtidas:", error);
+      return [];
+    }
+
+    const ids = data.map((row) => row.image_id);
+    mem.likedIds = new Set(ids);
+    persistLiked(sessionId);
+    mem.likedFetchedFromDb = true;
+
+    return ids;
+  })().finally(() => {
+    mem.likedFetchPromise = null;
+  });
+
+  return mem.likedFetchPromise;
 };
 
 export const getDownloadedImageIds = async () => {
-  const sessionId = getSessionId();
+  const sessionId = ensureHydrated();
 
-  const { data, error } = await supabase
-    .from("interactions")
-    .select("image_id")
-    .eq("session_id", sessionId)
-    .gt("downloads", 0);
+  if (mem.downloadedFetchedFromDb) return Array.from(mem.downloadedIds);
 
-  if (error) {
-    console.error("Erro ao buscar imagens baixadas:", error);
-    return [];
+  if (mem.downloadedIds.size > 0) {
+    if (!mem.downloadedFetchPromise) {
+      mem.downloadedFetchPromise = (async () => {
+        const { data, error } = await supabase
+          .from("interactions")
+          .select("image_id")
+          .eq("session_id", sessionId)
+          .gt("downloads", 0);
+
+        if (error) {
+          console.error("Erro ao buscar imagens baixadas:", error);
+          return Array.from(mem.downloadedIds);
+        }
+
+        const ids = data.map((row) => row.image_id);
+        mem.downloadedIds = new Set(ids);
+        persistDownloaded(sessionId);
+        mem.downloadedFetchedFromDb = true;
+
+        return ids;
+      })().finally(() => {
+        mem.downloadedFetchPromise = null;
+      });
+    }
+
+    return Array.from(mem.downloadedIds);
   }
 
-  return data.map((row) => row.image_id);
+  if (mem.downloadedFetchPromise) return mem.downloadedFetchPromise;
+
+  mem.downloadedFetchPromise = (async () => {
+    const { data, error } = await supabase
+      .from("interactions")
+      .select("image_id")
+      .eq("session_id", sessionId)
+      .gt("downloads", 0);
+
+    if (error) {
+      console.error("Erro ao buscar imagens baixadas:", error);
+      return [];
+    }
+
+    const ids = data.map((row) => row.image_id);
+    mem.downloadedIds = new Set(ids);
+    persistDownloaded(sessionId);
+    mem.downloadedFetchedFromDb = true;
+
+    return ids;
+  })().finally(() => {
+    mem.downloadedFetchPromise = null;
+  });
+
+  return mem.downloadedFetchPromise;
 };
