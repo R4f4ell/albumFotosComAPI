@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { getLikedImageIds, getDownloadedImageIds } from "../utils/interactions";
 import { getPhotoById } from "../lib/unsplash";
 
-/* cache global (entre renders) */
 const photoByIdCache = new Map();
 
 async function fetchPhotoSafe(id) {
@@ -62,7 +61,6 @@ export function useInteractedPhotos(categoria, onReady) {
     if (readyFiredRef.current) return;
     readyFiredRef.current = true;
 
-    // garante que o state já teve chance de renderizar antes
     requestAnimationFrame(() => {
       if (!canceledRef.current) onReady && onReady();
     });
@@ -79,11 +77,7 @@ export function useInteractedPhotos(categoria, onReady) {
     const onLikesChanged = (e) => {
       const { imageId, liked, photo } = e?.detail ?? {};
       if (!imageId) return;
-
-      // alimenta cache de foto se vier no evento
       if (photo?.id) photoByIdCache.set(photo.id, photo);
-
-      // se temos lista em cache, tenta atualizar sem refetch
       const cached = listCacheRef.current.liked;
       if (Array.isArray(cached)) {
         if (liked) {
@@ -95,7 +89,6 @@ export function useInteractedPhotos(categoria, onReady) {
               if (categoria === "liked") setPhotos(next);
             }
           } else {
-            // sem photo -> invalida e refaz quando precisar
             listCacheRef.current.liked = null;
             if (categoria === "liked") setPhotos([]);
             setRefreshKey((k) => k + 1);
@@ -108,7 +101,6 @@ export function useInteractedPhotos(categoria, onReady) {
         return;
       }
 
-      // sem cache -> força recarregar quando abrir aba
       setRefreshKey((k) => k + 1);
     };
 
@@ -192,7 +184,6 @@ export function useInteractedPhotos(categoria, onReady) {
         fireReadyOnce();
       }
 
-      // 4) busca só o que falta (concorrente)
       const missing = ids.filter((id) => !photoByIdCache.has(id));
       if (missing.length === 0) {
         const finalList = ids.map((id) => photoByIdCache.get(id)).filter(Boolean);
@@ -213,7 +204,6 @@ export function useInteractedPhotos(categoria, onReady) {
 
           setPhotos((prev) => {
             const next = mergeAndSort(prev, [photo], orderMap);
-            // primeira foto real chegando -> libera UI
             if (next.length > 0) fireReadyOnce();
             return next;
           });

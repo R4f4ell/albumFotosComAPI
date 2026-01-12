@@ -3,7 +3,13 @@ import { Search, List, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import "./searchBar.scss";
 
-const SearchBar = ({ setQuery, setCategoria, setActivateSearch }) => {
+const SearchBar = ({
+  setQuery,
+  setCategoria,
+  setActivateSearch,
+  currentQuery,
+  currentCategoria,
+}) => {
   const [localQuery, setLocalQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [selectedValue, setSelectedValue] = useState("");
@@ -14,6 +20,11 @@ const SearchBar = ({ setQuery, setCategoria, setActivateSearch }) => {
     () => ["Natureza", "Pessoas", "Tecnologia", "Animais", "Esportes"],
     []
   );
+
+  useEffect(() => {
+    if (typeof currentQuery === "string") setLocalQuery(currentQuery);
+    if (typeof currentCategoria === "string") setSelectedValue(currentCategoria);
+  }, [currentQuery, currentCategoria]);
 
   const handleSearch = (e) => {
     if (e?.preventDefault) e.preventDefault();

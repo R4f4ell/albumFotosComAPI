@@ -79,10 +79,7 @@ const FotoAmpliada = ({ foto, setFotoAmpliada }) => {
 
   useEffect(() => {
     if (!foto?.id) return;
-
-    // ✅ resolve o delay: pinta o coração IMEDIATO do cache local
     setLiked(getCachedLike(foto.id));
-
     userInteractedRef.current = false;
     const seq = ++loadSeqRef.current;
     let canceled = false;
@@ -94,11 +91,9 @@ const FotoAmpliada = ({ foto, setFotoAmpliada }) => {
       if (seq !== loadSeqRef.current) return;
       if (userInteractedRef.current) return;
 
-      // reconcilia com o DB
       const dbLiked = (interaction?.likes ?? 0) > 0;
 
       setLiked(dbLiked);
-      // garante cache local também
       setCachedLike(foto.id, dbLiked);
     })();
 
@@ -130,8 +125,6 @@ const FotoAmpliada = ({ foto, setFotoAmpliada }) => {
 
     likePendingRef.current = true;
     setLikePending(true);
-
-    // ✅ UI imediata + cache imediato (evita delay ao reabrir modal)
     setLiked(next);
     setCachedLike(foto.id, next);
 
@@ -147,8 +140,6 @@ const FotoAmpliada = ({ foto, setFotoAmpliada }) => {
       );
     } catch (err) {
       console.error(err);
-
-      // rollback
       setLiked(!next);
       setCachedLike(foto.id, !next);
     } finally {
@@ -170,8 +161,6 @@ const FotoAmpliada = ({ foto, setFotoAmpliada }) => {
     a.click();
 
     URL.revokeObjectURL(url);
-
-    // ✅ cache local já marca download (aba "Baixadas" fica mais rápida)
     markCachedDownload(foto.id);
 
     incrementDownload(foto.id)

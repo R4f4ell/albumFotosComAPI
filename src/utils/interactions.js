@@ -1,9 +1,6 @@
 import { supabase } from "../lib/supabase";
 import { getSessionId } from "./sessionId";
 
-/* =========================
-   Cache local (rápido)
-========================= */
 const STORAGE_PREFIX = "interactions:v1";
 
 const mem = {
@@ -13,7 +10,6 @@ const mem = {
   likedIds: new Set(),
   downloadedIds: new Set(),
 
-  // flags / promises para evitar spam de requests
   likedFetchPromise: null,
   downloadedFetchPromise: null,
   likedFetchedFromDb: false,
@@ -42,7 +38,6 @@ function safeWriteArray(key, arr) {
   try {
     localStorage.setItem(key, JSON.stringify(arr));
   } catch {
-    // ignora (storage cheio / bloqueado)
   }
 }
 
@@ -102,9 +97,6 @@ export function markCachedDownload(imageId) {
   persistDownloaded(sessionId);
 }
 
-/* =========================
-   Supabase
-========================= */
 export const getInteraction = async (imageId) => {
   const sessionId = getSessionId();
 
@@ -127,7 +119,7 @@ export const setLike = async (imageId, value) => {
 
   if (!existing) {
     if (!wantsLike) {
-      // cache local também remove (garante consistência)
+      // cache local
       setCachedLike(imageId, false);
       return;
     }
@@ -252,7 +244,7 @@ export const incrementDownload = async (imageId) => {
     throw error;
   }
 
-  // cache local (download > 0)
+  // cache local
   markCachedDownload(imageId);
   mem.downloadedFetchedFromDb = true;
 };
@@ -260,10 +252,8 @@ export const incrementDownload = async (imageId) => {
 export const getLikedImageIds = async () => {
   const sessionId = ensureHydrated();
 
-  // já buscou do DB antes: devolve direto
   if (mem.likedFetchedFromDb) return Array.from(mem.likedIds);
 
-  // tem cache local (localStorage): devolve rápido e atualiza em background
   if (mem.likedIds.size > 0) {
     if (!mem.likedFetchPromise) {
       mem.likedFetchPromise = (async () => {
