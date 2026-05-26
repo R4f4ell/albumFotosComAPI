@@ -4,7 +4,7 @@ Aplicação web responsiva para buscar, visualizar e ampliar imagens utilizando 
 
 ---
 
-## 🔧 Tecnologias
+## Tecnologias
 
 - React
 - Vite
@@ -13,7 +13,7 @@ Aplicação web responsiva para buscar, visualizar e ampliar imagens utilizando 
 - Lucide Icons
 - Framer Motion (animações)
 
-## 🚀 Funcionalidades
+## Funcionalidades
 
 - Buscar fotos pela **API do Unsplash**
 - Filtro por **categoria** ou **termos personalizados**
@@ -29,8 +29,3 @@ Aplicação web responsiva para buscar, visualizar e ampliar imagens utilizando 
 - **Filtro “Baixadas”** para exibir apenas as imagens já baixadas
 - **Atualização otimista** ao curtir (sem reload)
 - **Mensagens de feedback** como "Carregando..." e "Nada encontrado"
-
-
-## 🔗 Links
-- Projeto online: https://albumdefotos.rafaelldev.com
-- Código-fonte: https://github.com/R4f4ell/albumFotosComAPI
